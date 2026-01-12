@@ -1,0 +1,182 @@
+
+
+//AI-Based Recommendation System (Movie Recommender) WITHOUT External Libraries USING User-Based Collaborative Filtering with Cosine Similarity
+
+import java.util.*;
+public class MovieRecommendationSystem {
+
+    // Sample data: userId -> movieId -> rating
+    private static final Map<Integer, Map<Integer, Double>> userRatings = new HashMap<>();
+
+    // Movie names for better output
+    private static final Map<Integer, String> movieNames = new HashMap<>();
+
+    public static void main(String[] args) {
+        initializeData();
+
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("=== AI-Based Movie Recommendation System ===");
+        System.out.println("Sample Movies:");
+        movieNames.forEach((id, name) -> System.out.println("ID " + id + ": " + name));
+
+        System.out.print("\nEnter your User ID (1-5): ");
+        int targetUserId = scanner.nextInt();
+
+        if (!userRatings.containsKey(targetUserId)) {
+            System.out.println("User not found!");
+            return;
+        }
+
+        System.out.println("\nGenerating recommendations for User " + targetUserId + "...\n");
+
+        List<Recommendation> recommendations = generateRecommendations(targetUserId);
+
+        if (recommendations.isEmpty()) {
+            System.out.println("No recommendations available at this time.");
+        } else {
+            System.out.println("Top Recommended Movies for You:");
+            System.out.println("-----------------------------------");
+            for (int i = 0; i < Math.min(5, recommendations.size()); i++) {
+                Recommendation rec = recommendations.get(i);
+                String movieName = movieNames.getOrDefault(rec.movieId, "Unknown Movie");
+                System.out.printf("%d. %s (Predicted Rating: %.2f)%n",
+                        i + 1, movieName, rec.predictedRating);
+            }
+        }
+
+        scanner.close();
+    }
+
+    // Initialize sample data
+    private static void initializeData() {
+        // Movie catalog
+        movieNames.put(101, "Inception");
+        movieNames.put(102, "The Matrix");
+        movieNames.put(103, "Interstellar");
+        movieNames.put(104, "The Dark Knight");
+        movieNames.put(105, "Pulp Fiction");
+        movieNames.put(106, "Avengers: Endgame");
+        movieNames.put(107, "Parasite");
+
+        // User ratings (userId -> movieId -> rating)
+        addRating(1, 101, 5.0);
+        addRating(1, 102, 4.0);
+        addRating(1, 103, 5.0);
+        addRating(1, 104, 4.5);
+
+        addRating(2, 101, 2.0);
+        addRating(2, 103, 5.0);
+        addRating(2, 105, 4.0);
+        addRating(2, 106, 4.5);
+
+        addRating(3, 102, 4.5);
+        addRating(3, 104, 5.0);
+        addRating(3, 105, 3.5);
+
+        addRating(4, 101, 5.0);
+        addRating(4, 103, 4.0);
+        addRating(4, 104, 5.0);
+        addRating(4, 107, 4.5);
+
+        addRating(5, 102, 3.0);
+        addRating(5, 105, 4.5);
+        addRating(5, 106, 5.0);
+        addRating(5, 107, 4.0);
+    }
+
+    private static void addRating(int userId, int movieId, double rating) {
+        userRatings.computeIfAbsent(userId, k -> new HashMap<>()).put(movieId, rating);
+    }
+
+    // Generate recommendations using cosine similarity
+    private static List<Recommendation> generateRecommendations(int targetUserId) {
+        Map<Integer, Double> similarities = new HashMap<>();
+
+        // Calculate similarity with all other users
+        for (int otherUserId : userRatings.keySet()) {
+            if (otherUserId == targetUserId) continue;
+
+            double similarity = cosineSimilarity(targetUserId, otherUserId);
+            if (similarity > 0.1) {  // Only consider reasonably similar users
+                similarities.put(otherUserId, similarity);
+            }
+        }
+
+        // Collect movies not rated by target user
+        Set<Integer> targetRatedMovies = userRatings.get(targetUserId).keySet();
+        Map<Integer, Double> predictedRatings = new HashMap<>();
+
+        for (int otherUserId : similarities.keySet()) {
+            double sim = similarities.get(otherUserId);
+            for (Map.Entry<Integer, Double> entry : userRatings.get(otherUserId).entrySet()) {
+                int movieId = entry.getKey();
+                double rating = entry.getValue();
+
+                if (!targetRatedMovies.contains(movieId)) {
+                    predictedRatings.merge(movieId, sim * rating, Double::sum);
+                }
+            }
+        }
+
+        // Normalize by total similarity weight
+        for (int movieId : predictedRatings.keySet()) {
+            int similarUserCount = 0;
+            double totalSim = 0;
+            for (int user : similarities.keySet()) {
+                if (userRatings.get(user).containsKey(movieId)) {
+                    totalSim += similarities.get(user);
+                    similarUserCount++;
+                }
+            }
+            if (similarUserCount > 0) {
+                predictedRatings.put(movieId, predictedRatings.get(movieId) / totalSim);
+            }
+        }
+
+        // Sort by predicted rating
+        List<Recommendation> recommendations = new ArrayList<>();
+        for (Map.Entry<Integer, Double> entry : predictedRatings.entrySet()) {
+            recommendations.add(new Recommendation(entry.getKey(), entry.getValue()));
+        }
+        recommendations.sort((a, b) -> Double.compare(b.predictedRating, a.predictedRating));
+
+        return recommendations;
+    }
+
+    // Cosine similarity between two users
+    private static double cosineSimilarity(int user1, int user2) {
+        Map<Integer, Double> ratings1 = userRatings.get(user1);
+        Map<Integer, Double> ratings2 = userRatings.get(user2);
+
+        double dotProduct = 0.0;
+        double norm1 = 0.0;
+        double norm2 = 0.0;
+
+        for (int movieId : ratings1.keySet()) {
+            if (ratings2.containsKey(movieId)) {
+                dotProduct += ratings1.get(movieId) * ratings2.get(movieId);
+            }
+            norm1 += Math.pow(ratings1.get(movieId), 2);
+        }
+
+        for (double rating : ratings2.values()) {
+            norm2 += Math.pow(rating, 2);
+        }
+
+        if (norm1 == 0 || norm2 == 0) return 0.0;
+        return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    }
+
+    // Helper class to hold recommendation
+    static class Recommendation {
+        int movieId;
+        double predictedRating;
+
+        Recommendation(int movieId, double predictedRating) {
+            this.movieId = movieId;
+            this.predictedRating = predictedRating;
+        }
+    }
+}
+//THANKS IN ADVANCE FOR CONSIDERING MY PROJECT . 

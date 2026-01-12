@@ -1,0 +1,148 @@
+//DOCUMENTATION ON FILE HANDLING-READING ,WRITING ,MODIFYING AND ADDITIONALY APPENDING 
+
+import java.io.*;
+import java.util.Scanner;
+
+public class FileHandlingUtility {
+    
+    private static final Scanner scanner = new Scanner(System.in);
+    
+    public static void main(String[] args) {
+        System.out.println("=== File Handling Utility ===");
+        System.out.println("1. Create and Write to a file");
+        System.out.println("2. Read from a file");
+        System.out.println("3. Append to a file");
+        System.out.println("4. Modify (replace text) in a file");
+        System.out.println("5. Exit");
+        
+        while (true) {
+            System.out.print("\nEnter your choice: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine(); // consume newline
+            
+            switch (choice) {
+                case 1:
+                    createAndWriteFile();
+                    break;
+                case 2:
+                    readFile();
+                    break;
+                case 3:
+                    appendToFile();
+                    break;
+                case 4:
+                    modifyFile();
+                    break;
+                case 5:
+                    System.out.println("Goodbye! Thank you for using File Handling Utility.");
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+    
+    // Create a new file and write initial content
+    private static void createAndWriteFile() {
+        System.out.print("Enter file name (e.g., notes.txt): ");
+        String fileName = scanner.nextLine();
+        
+        System.out.println("Enter content (type END on a new line to finish):");
+        StringBuilder content = new StringBuilder();
+        String line;
+        while (!(line = scanner.nextLine()).equals("END")) {
+            content.append(line).append("\n");
+        }
+        
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            writer.write(content.toString());
+            System.out.println("File '" + fileName + "' created and written successfully!");
+        } catch (IOException e) {
+            System.out.println("Error writing to file: " + e.getMessage());
+        }
+    }
+    
+    // Read and display file content
+    private static void readFile() {
+        System.out.print("Enter file name to read: ");
+        String fileName = scanner.nextLine();
+        
+        File file = new File(fileName);
+        if (!file.exists()) {
+            System.out.println("File does not exist!");
+            return;
+        }
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            System.out.println("\n--- Content of " + fileName + " ---");
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+            System.out.println("--- End of file ---\n");
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + e.getMessage());
+        }
+    }
+    
+    // Append new content to existing file
+    private static void appendToFile() {
+        System.out.print("Enter file name to append: ");
+        String fileName = scanner.nextLine();
+        
+        System.out.println("Enter text to append (type END to finish):");
+        StringBuilder content = new StringBuilder();
+        String line;
+        while (!(line = scanner.nextLine()).equals("END")) {
+            content.append(line).append("\n");
+        }
+        
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
+            writer.write(content.toString());
+            System.out.println("Content appended to '" + fileName + "' successfully!");
+        } catch (IOException e) {
+            System.out.println("Error appending to file: " + e.getMessage());
+        }
+    }
+    
+    // Simple text replacement in file
+    private static void modifyFile() {
+        System.out.print("Enter file name to modify: ");
+        String fileName = scanner.nextLine();
+        
+        File file = new File(fileName);
+        if (!file.exists()) {
+            System.out.println("File does not exist!");
+            return;
+        }
+        
+        System.out.print("Enter text to replace: ");
+        String oldText = scanner.nextLine();
+        
+        System.out.print("Enter new text: ");
+        String newText = scanner.nextLine();
+        
+        try {
+            // Read all content
+            StringBuilder content = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append("\n");
+                }
+            }
+            
+            // Replace text
+            String updatedContent = content.toString().replace(oldText, newText);
+            
+            // Write back
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+                writer.write(updatedContent);
+            }
+            
+            System.out.println("File modified successfully!");
+        } catch (IOException e) {
+            System.out.println("Error modifying file: " + e.getMessage());
+        }
+    }
+}
